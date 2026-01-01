@@ -1,0 +1,77 @@
+name: Test Build Status Reporting
+
+on:
+  workflow_dispatch:
+    inputs:
+      uuid:
+        description: 'Test UUID (e.g. test-001)'
+        required: true
+        default: 'test-status-001'
+      simulate_failure:
+        description: 'Simulate build failure?'
+        type: boolean
+        required: true
+        default: false
+
+jobs:
+  test-status:
+    runs-on: windows-latest
+    steps:
+      - name: Set up environment
+        run: |
+          echo "UUID=${{ github.event.inputs.uuid }}" >> $GITHUB_ENV
+          echo "SIMULATE_FAILURE=${{ github.event.inputs.simulate_failure }}" >> $GITHUB_ENV
+
+      - name: Simulate build process
+        run: |
+          if ($env:SIMULATE_FAILURE -eq "true") {
+            Write-Host "[ERROR] Simulating build failure..."
+            Start-Sleep -Seconds 3
+            exit 1
+          } else {
+            Write-Host "[OK] Simulating build success..."
+            Start-Sleep -Seconds 3
+          }
+
+      - name: Report SUCCESS status
+        if: success()
+        uses: fjogeleit/http-request-action@v1
+        with:
+          url: ${{ secrets.STATUS_URL }}
+          method: 'POST'
+          customHeaders: '{"Content-Type": "application/json"}'
+          data: |
+            {
+              "uuid": "${{ env.UUID }}",
+              "status": "Success"
+            }
+
+      - name: Report FAILURE status
+        if: failure()
+        uses: fjogeleit/http-request-action@v1
+        with:
+          url: ${{ secrets.STATUS_URL }}
+          method: 'POST'
+          customHeaders: '{"Content-Type": "application/json"}'
+          data: |
+            {
+              "uuid": "${{ env.UUID }}",
+              "status": "Failed"
+            }
+
+      - name: Final fallback report (always runs)
+        if: always()
+        run: |
+          $status = if (${{ github.event.inputs.simulate_failure }}) { "failure" } else { "success" }
+          $body = @{
+            uuid = "${{ env.UUID }}"
+            status = $status
+          } | ConvertTo-Json
+
+          $headers = @{ "Content-Type" = "application/json" }
+          try {
+            Invoke-RestMethod -Uri "${{ secrets.STATUS_URL }}" -Method Post -Headers $headers -Body $body
+            Write-Host "[INFO] Final status reported: $status"
+          } catch {
+            Write-Host "[WARN] Failed to report final status: $_"
+          }
