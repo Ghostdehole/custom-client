@@ -482,13 +482,13 @@ jobs:
             sed -i 's/^\([[:space:]]*\)_buildQuitButton(context),$/\1\/\/ _buildQuitButton(context),/'  flutter/lib/desktop/pages/desktop_home_page.dart       
      
       - name:  Add Copy key
-        if: fromJson(inputs.extras).addcopykey == 'true'
+        if: fromJson(inputs.extras).addcopy == 'true'
         shell: bash
         run: |
           sed -i "s|^\([[:space:]]*\)///\(buildCopyIdPasswordButton(context),\)$|\1\2|"  flutter/lib/desktop/pages/desktop_home_page.dart
       
       - name: Superhidecm
-        if: fromJson(inputs.extras).superhidecm == 'true'
+        if: fromJson(inputs.extras).supercm == 'true'
         shell: bash
         run: |
           python3  patches/patch_hide_cm_1.py
