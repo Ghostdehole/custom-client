@@ -671,22 +671,45 @@ jobs:
           mkdir -p ./SignOutput
           mv ./target/release/rustdesk-portable-packer.exe "./SignOutput/rustdesk.exe"
 
-      - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Build msi
-        
-        if: env.UPLOAD_ARTIFACT == 'true'
+      - name: Install NSIS
         run: |
-          $myappname = "${{ inputs.appname }}" -replace '\s','_'
-          cp "rustdesk/${{ inputs.appname }}.exe" "rustdesk/${myappname}.exe" -ErrorAction SilentlyContinue
-          pushd ./res/msi
-          python preprocess.py --app-name "$myappname" --arp -d ../../rustdesk
-          nuget restore msi.sln
-          msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
-          cp ./Package/bin/x64/Release/en-us/Package.msi ../../SignOutput/rustdesk-latest.msi
-          mv ./Package/bin/x64/Release/en-us/Package.msi ../../SignOutput/rustdesk.msi
-          sha256sum ../../SignOutput/rustdesk.msi
+          choco install -y nsis --no-progress
+      
+      - name: Prepare NSIS script
+        shell: bash
+        run: |
+          cp patches/installer.nsi .
+          sed -i "s|\${APPNAME}|${{ inputs.appname }}|g" installer.nsi
+      
+      - name: Build EXE installer with NSIS
+        run: |
+          cd rustdesk
+          cd ..
+          makensis installer.nsi
+      
+      - name: Rename installer
+        id: build_name
+        shell: bash
+        run: |
+          RAW_UUID="${{ github.event.inputs.uuid }}"
+          CLEAN_UUID=$(echo "$RAW_UUID" | tr -d '-')
+          SHORT_UUID=${CLEAN_UUID:0:4}
+          CONN_TYPE="default"
+          if [ -n "${{ inputs.custom }}" ]; then
+            echo "Parsing custom input..."
+            python3 -c "
+                import sys, json, base64;
+                data = json.loads(base64.b64decode('${{ inputs.custom }}').decode());
+                print(data.get('conn-type', 'default'))
+            " > /tmp/conn.txt
+            CONN_TYPE=$(cat /tmp/conn.txt)
+          fi
+          SANITIZED_CONN=$(echo "$CONN_TYPE" | tr -cd 'a-zA-Z0-9_.-' | tr '[:upper:]' '[:lower:]')
+          NAME="${{ inputs.filename }}-${SANITIZED_CONN}-${SHORT_UUID}"
+          echo "BUILD_FILENAME=$NAME" >> "$GITHUB_ENV"
+          echo "value=$NAME" >> "$GITHUB_OUTPUT"
+          mv rustdesk-setup.exe "SignOutput/${NAME}.exe"
+          echo "Installer renamed to ${NAME}.exe"
 
       - name: Sign Windows binaries (EXE and MSI)
         if: env.UPLOAD_ARTIFACT == 'true' && (success() || failure())
