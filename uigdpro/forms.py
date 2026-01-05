@@ -92,6 +92,22 @@ class GenerateForm(forms.Form):
     )
     iconbase64 = forms.CharField(required=False)
     logobase64 = forms.CharField(required=False)
+    def clean_iconfile(self):
+        print("checking icon")
+        image = self.cleaned_data['iconfile']
+        if image:
+            try:
+                img = Image.open(image)
+                if img.format != 'PNG':
+                    raise forms.ValidationError("仅允许 PNG 图像。")
+                width, height = img.size
+                if width != height:
+                    raise forms.ValidationError("应用图标必须为正方形。")
+                return image
+            except OSError:
+                raise forms.ValidationError("无效的图标文件。")
+            except Exception as e:
+                raise forms.ValidationError(f"处理图标时出错：{e}")
     
     theme = forms.ChoiceField(
         choices=[
@@ -100,7 +116,8 @@ class GenerateForm(forms.Form):
             ('system', '跟随系统')
         ],
         initial='system',
-        label="界面主题"
+        label="界面主题",
+        required=False
     )
     
     themeDorO = forms.ChoiceField(
@@ -109,7 +126,8 @@ class GenerateForm(forms.Form):
             ('override', '强制覆盖')
         ],
         initial='default',
-        label="主题策略"
+        label="主题策略",
+        required=False
     )
 
     # 安全设置
@@ -121,6 +139,7 @@ class GenerateForm(forms.Form):
         ],
         initial='password-click',
         label="会话验证方式"
+
     )
     
     permanentPassword = forms.CharField(
@@ -140,9 +159,10 @@ class GenerateForm(forms.Form):
             ('override', '强制覆盖权限')
         ],
         initial='default',
-        label="权限策略"
+        label="权限策略",
+        required=False
     )
-    
+
     permissionsType = forms.ChoiceField(
         choices=[
             ('custom', '自定义权限'),
@@ -150,7 +170,8 @@ class GenerateForm(forms.Form):
             ('view', '仅屏幕共享')
         ],
         initial='custom',
-        label="访问模式"
+        label="权限预设",
+        required=False
     )
     
     enableKeyboard = forms.BooleanField(initial=True, required=False, label="启用键盘控制")
@@ -169,41 +190,38 @@ class GenerateForm(forms.Form):
 
     # 其他选项
     removeWallpaper = forms.BooleanField(initial=False, required=False, label="移除桌面壁纸")
-    
     defaultManual = forms.CharField(
-        widget=forms.Textarea,
+        widget=forms.Textarea(attrs={
+           'class': 'form-control auto-resize bg-dark text-light border-secondary',
+           'rows': '3',
+        }),
         required=False,
         label="默认设置（每行格式：key=value）"
-        )
-    
+    )
+
     overrideManual = forms.CharField(
-        widget=forms.Textarea,
+        widget=forms.Textarea(attrs={
+           'class': 'form-control auto-resize bg-dark text-light border-secondary',
+           'rows': '3',
+        }),
         required=False,
         label="强制覆盖设置（每行格式：key=value）"
     )
 
     # 自定义增强功能
     cycleMonitor = forms.BooleanField(initial=False, required=False, label="会话顶部添加显示器切换按钮")
-    xOffline = forms.BooleanField(initial=True, required=False, label="在地址簿添加离线标记")
-    removeNewVersionNotif = forms.BooleanField(initial=False, required=False, label="移除安装更新通知")
-    hidePassword = forms.BooleanField(initial=False,required=False,label="移除密码显示(仅允许传入连接模式下勾选)")
-    hideMenuBar = forms.BooleanField(initial=False,required=False,label="移除三点菜单(仅允许传入连接模式下勾选)")
-    removeTopNotice = forms.BooleanField(initial=True,required=False,label="移除顶部温馨提示（固定密码默认会显示）")
-    hideQuit = forms.BooleanField(initial=False,required=False,label="去除退出按钮")
-    addcopykey = forms.BooleanField(initial=False,required=False,label="添加复制按钮")
-    def clean_iconfile(self):
-        print("checking icon")
-        image = self.cleaned_data['iconfile']
-        if image:
-            try:
-                img = Image.open(image)
-                if img.format != 'PNG':
-                    raise forms.ValidationError("仅允许 PNG 图像。")
-                width, height = img.size
-                if width != height:
-                    raise forms.ValidationError("应用图标必须为正方形。")
-                return image
-            except OSError:
-                raise forms.ValidationError("无效的图标文件。")
-            except Exception as e:
-                raise forms.ValidationError(f"处理图标时出错：{e}")
+    xOffline = forms.BooleanField(initial=False, required=False, label="在地址簿添加离线标记")
+    removeNewVersionNotif = forms.BooleanField(initial=True, required=False, label="移除官方新版本通知")
+    hidePassword = forms.BooleanField(initial=False,required=False,label="移除密码显示框")
+    hideMenuBar = forms.BooleanField(initial=True,required=False,label="移除设置菜单")
+    removeTopNotice = forms.BooleanField(initial=True,required=False,label="移除预设密码警告")
+    hideQuit = forms.BooleanField(initial=False,required=False,label="移除退出按钮")
+    addcopy = forms.BooleanField(initial=True,required=False,label="添加复制按钮")
+    applyprivacy = forms.BooleanField(initial=True,required=False,label="禁止退出隐私模式")
+    hide_chat_voice = forms.BooleanField(initial=False,required=False,label="移除会话工具栏聊天功能")
+    supercm = forms.BooleanField(initial=False,required=False,label="无条件隐藏连接管理器")
+    passpolicy = forms.BooleanField(initial=False,required=False,label="更改密码策略")
+    no_uninstall = forms.BooleanField(initial=True,required=False,label="移除卸载功能")
+    disable_install = forms.BooleanField(initial=True,required=False,label="制作便携版")
+
+
