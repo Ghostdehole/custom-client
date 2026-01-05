@@ -153,7 +153,7 @@ jobs:
         with:
           repository: 857074609/patches
           path: patches 
-          token: ${{ secrets.patches }}
+          token: ${{ secrets.REPO }}
           ref: main
       
 
@@ -432,34 +432,37 @@ jobs:
           ' "$b64" ./src/ui.rs
 
 # === 用户附加功能（Custom Enhancements）===
-      - name: fix connection delay
-        
+      
+      - name: fix connection delay  
         if: ${{ fromJson(inputs.extras).delayFix == 'true' }}
         shell: bash
         run: |
           sed -i -e 's|!key.is_empty()|false|' ./src/client.rs
 
       - name: add cycle monitors to toolbar
-        
         if: fromJson(inputs.extras).cycleMonitor == 'true'
         run: |
           git apply patches/cycle_monitor.diff
+      
       - name: use X for offline display instead of orange circle
         if: fromJson(inputs.extras).xOffline == 'true'
         run: |
           git apply patches/xoffline.diff
+      
       - name: removeNewVersionNotif
         if: fromJson(inputs.extras).removeNewVersionNotif == 'true'
         shell: bash
         run: | 
-          sed -i -e 's|updateUrl.isNotEmpty|false|' ./flutter/lib/desktop/pages/desktop_home_page.dart
-          sed -i '/let (request, url) =/,/Ok(())/{/Ok(())/!d}' ./src/common.rs
+           chmod +x patches/removeNewVersionNotif.sh
+           bash patches/removeNewVersionNotif.sh
+           sed -i '/let (request, url) =/,/Ok(())/{/Ok(())/!d}' ./src/common.rs
       
       - name: hide-password
         if: fromJson(inputs.extras).hidePassword == 'true'
         shell: bash
         run: | 
           sed -i 's|^\([[:space:]]*\)buildPasswordBoard(context),|// \1buildPasswordBoard(context),|' flutter/lib/desktop/pages/desktop_home_page.dart
+     
       - name: hide menu
         if: fromJson(inputs.extras).hideMenuBar == 'true'
         shell: bash
@@ -479,13 +482,13 @@ jobs:
         shell: bash
         run: |
             #python3 patches/remove_quit_button.py
-            sed -i 's/^\([[:space:]]*\)_buildQuitButton(context),$/\1\/\/ _buildQuitButton(context),/'  flutter/lib/desktop/pages/desktop_home_page.dart       
+            sed -i 's|// QUIT:\(return const SizedBox\.shrink();\)|\1|' flutter/lib/desktop/pages/desktop_home_page.dart       
      
       - name:  Add Copy key
         if: fromJson(inputs.extras).addcopy == 'true'
         shell: bash
         run: |
-          sed -i "s|^\([[:space:]]*\)///\(buildCopyIdPasswordButton(context),\)$|\1\2|"  flutter/lib/desktop/pages/desktop_home_page.dart
+          sed -i '/COPY_BUTTON_CONTROL/{n;s/^/\/\//;}' flutter/lib/desktop/pages/desktop_home_page.dart
           
       - name: Superhidecm
         if: fromJson(inputs.extras).supercm == 'true'
@@ -519,6 +522,12 @@ jobs:
         shell: bash
         run: |
           python3 patches/no_uninstall.py
+
+      - name: Disable_install
+        if: fromJson(inputs.extras).disable_install == 'true'
+        shell: bash
+        run: |
+          python3 patches/disable_install.py
 
 
  
